@@ -1,0 +1,63 @@
+---
+title: "Machine learning course project"
+author: "Limine.S"
+date: "5/24/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+## Overview
+
+### Firstly the raw training data is splited into training and testing dataset. Then the training dataset is used to build predict models. Finally we found that random forest is better model of this case.
+
+## Clean and explore data
+
+```{r}
+library(caret)
+trainingData <- read.csv("pml-training.csv")
+testingData <- read.csv("pml-testing.csv")
+trainingData <- as.data.frame(trainingData)
+testingData <- as.data.frame(testingData)
+trainingData$classe <- factor(trainingData$classe)
+NArat <- function(x){
+    apply(x, 2, function(y) sum(is.na(y)))/nrow(x)
+}
+trainingData <- trainingData[,NArat(trainingData) < .7]
+nearZero <- nearZeroVar(trainingData, saveMetrics = TRUE)
+trainingData <- trainingData[, !nearZero$nzv]
+trainingData <- trainingData[,-grep("name|timestamp|window|^X",names(trainingData))]
+trainingNN <- trainingData[, -length(names(trainingData))]
+findCor <- findCorrelation(cor(trainingNN,use="complete.obs"), cutoff = .7)
+trainingFil <- trainingData[,-findCor]
+inTrain <- createDataPartition(y = trainingFil$classe, p = 0.6, 
+                               list = FALSE) 
+training <- trainingFil[inTrain,]
+testing <- trainingFil[-inTrain,]
+```
+
+## rpart model
+
+```{r}
+library(rpart)
+rpartMod <- rpart(formula = classe ~ ., data = training)
+rpartPred <- predict(rpartMod,newdata = testing,
+                         type = "class")
+confusionMatrix(rpartPred,testing$classe)
+
+```
+
+## random forest model
+
+```{r pressure, echo=FALSE}
+library(randomForest)
+rfMod <- randomForest(formula = classe ~ ., data = training)
+rfPred <- predict(rfMod,newdata = testing)
+confusionMatrix(rfPred,testing$classe)
+```
+
+## Conclusion
+
+### Ramdon forest model is better fit model with an accuracy 0.9927, so it's preferable to choose ramdon forest to predict 20 cases.
